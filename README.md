@@ -57,14 +57,6 @@ Supports multiple languages in future. Currently: Rust (Axum).
 └──────────────────────┘ ◀─────────────────────────────────    └────────────┘
 ```
 
-## Crates
-
-- **`shared/`** — `Submission`, `GradeResult`, `AuthRequest/Response` types
-- **`grader/`** — Axum server: auth, grading engine, live DB API
-- **`student-cli/`** — CLI for submitting from the terminal
-- **`web/`** — React + Vite + Monaco web UI
-- **`problems/`** — problem specs and reference solutions
-
 ## Problems
 
 | ID | Title | Tags |
