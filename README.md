@@ -1,77 +1,110 @@
-# API Trainer
+# RealDev
 
-A platform where students learn backend development by writing Rust programs
-that query a database. Submissions are graded automatically.
+A platform where students learn backend engineering by writing real HTTP API handlers — not toy programs, not DSA puzzles. Write an Axum server, submit it, get it compiled and tested against a live PostgreSQL database.
+
+## What it is
+
+Students pick a ticket, read a spec, implement a working Axum HTTP server, and submit. The grader spins up their server, fires real HTTP requests at it, and checks the responses. Same loop real engineers do every day.
+
+Supports multiple languages in future. Currently: Rust (Axum).
 
 ## Architecture
 
 ```
-┌──────────────┐   HTTP POST /submit   ┌────────────┐
-│ student-cli  │ ────────────────────▶ │  grader    │
-│ (CLI tool)   │                       │  (axum)    │
-└──────────────┘                       └─────┬──────┘
-                                             │
-                                 compile + run in tempdir
-                                             │
-                                             ▼
-                                       ┌────────────┐
-                                       │ PostgreSQL │
-                                       └────────────┘
+┌─────────────────┐        HTTP POST /submit        ┌─────────────────┐
+│   Web UI        │ ──────────────────────────────▶ │    grader       │
+│ (React + Monaco)│                                  │    (Axum)       │
+│                 │ ◀── GET/POST/PUT/DELETE /db/:t── │                 │
+└─────────────────┘                                  └────────┬────────┘
+                                                              │
+                                                   compile student code
+                                                   seed PostgreSQL DB
+                                                   spawn student server
+                                                   fire HTTP test cases
+                                                              │
+                                                              ▼
+                                                       ┌────────────┐
+                                                       │ PostgreSQL │
+                                                       └────────────┘
 ```
 
 ## Crates
 
-- **`shared/`** — submission/result types used by both sides
-- **`grader/`** — HTTP server that receives submissions, compiles them in a
-  temp cargo project, runs them against a seeded DB, and compares stdout to
-  the expected answer
-- **`student-cli/`** — command-line tool students use to submit solutions
-- **`problems/`** — problem briefs and reference solutions
+- **`shared/`** — `Submission`, `GradeResult`, `AuthRequest/Response` types
+- **`grader/`** — Axum server: auth, grading engine, live DB API
+- **`student-cli/`** — CLI for submitting from the terminal
+- **`web/`** — React + Vite + Monaco web UI
+- **`problems/`** — problem specs and reference solutions
+
+## Problems
+
+| ID | Title | Tags |
+| -- | ----- | ---- |
+| p001 | List Users | GET, SELECT |
+| p002 | Get User by ID | GET, Path Params, 404 |
+| p003 | Create User | POST, Insert, 201 |
+| p004 | User Stats | GET, Aggregate, COUNT |
+| p005 | Update User | PUT, Update, 404 |
 
 ## Prerequisites
 
 - Rust (stable)
 - PostgreSQL running locally
-- `sqlx-cli` for migrations: `cargo install sqlx-cli --no-default-features --features postgres`
+- Node.js 18+ (for the web UI)
 
 ## Setup
 
 ```sh
-# 1. Start Postgres and create the DB
+# 1. Create the database
 createdb api_trainer
 export DATABASE_URL=postgres://postgres:postgres@localhost:5432/api_trainer
 
-# 2. Run the grader (migrations apply automatically on startup)
+# 2. Start the grader (auto-runs migrations on startup)
 cargo run -p grader
 
-# 3. In another shell, submit the sample solution
-cargo run -p student-cli -- \
-    --file problems/p001-list-users/solution.rs \
-    --problem p001-list-users \
-    --student alice123
+# 3. Start the web UI (in a separate terminal)
+cd web && npm install && npm run dev
+# Open http://localhost:5173
 ```
 
 ## How grading works
 
-1. CLI posts the student's source code + problem id to `/submit`
-2. Grader resets the DB to a known state (seeds fixtures for this problem)
-3. Grader writes the code into a throwaway cargo project in `/tmp`
-4. Grader compiles with `cargo build --release`
-5. Grader runs the binary with `DATABASE_URL` set, 10-second timeout
-6. stdout is compared to expected output (JSON-aware comparison)
-7. Result is returned to the CLI
+1. Student registers/logs in → gets an auth token
+2. Submits source code + problem ID via web UI or CLI
+3. Grader resets DB to known state (seeds fixtures for that problem)
+4. Grader writes code into a persistent cargo project under `/tmp/api-trainer-cache/{problem_id}/`
+5. Compiles with `cargo build` (debug, incremental — first run ~30-60s, subsequent ~2-3s)
+6. Spawns the student's server with `DATABASE_URL` + a free `PORT`
+7. Fires HTTP requests matching the problem's test cases
+8. Compares JSON responses structurally (key order doesn't matter)
+9. Returns pass/fail per test case
+
+## Using the CLI
+
+```sh
+# Register
+cargo run -p student-cli -- register --username alice
+
+# Login
+cargo run -p student-cli -- login --username alice
+
+# Submit
+cargo run -p student-cli -- \
+    --token <your-token> \
+    --file problems/p001-list-users/solution.rs \
+    --problem p001-list-users
+```
 
 ## Adding a new problem
 
-1. Add a case to `grader/src/problems.rs::load` with test cases
-2. Add a seed case to `grader/src/problems.rs::seed`
-3. Add any new tables to `grader/migrations/`
-4. Write `problems/pXXX-name/README.md` and a reference solution
+1. Add a `Problem` struct to `grader/src/problems.rs` with test cases and seed data
+2. Add the problem definition to `web/src/App.tsx` (PROBLEMS array)
+3. Write a reference solution in `problems/pXXX-name/solution.rs`
 
-## Security note — important for scaling
+## Auth
 
-The grader currently runs student code directly on the host. This is fine for
-a prototype but **not safe for real use** — a malicious student could wipe
-your DB or spawn a crypto miner. Before using this with real students, run
-submissions in a sandbox: Docker containers with `--network=none` + a
-scratch DB per submission, Firecracker microVMs, or a service like E2B.
+Students register once, get a UUID token, use it for all submissions. Token stored in `Authorization: Bearer <token>` header. Passwords hashed with argon2.
+
+## Security note
+
+The grader runs student code directly on the host. Fine for a trusted classroom, **not safe for public use** — a malicious submission could affect the host. For production: run submissions in Docker containers (`--network=none`, scratch DB per run) or Firecracker microVMs.
