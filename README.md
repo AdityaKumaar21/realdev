@@ -2,7 +2,7 @@
 
 A platform where students learn backend engineering by writing real HTTP API handlers — not toy programs, not DSA puzzles. Write an Axum server, submit it, get it compiled and tested against a live PostgreSQL database.
 
-![Dashboard](assets/images/dashboard.png)
+![Dashboard](assets/videos/dashboard.gif)
 
 ## What it is
 
