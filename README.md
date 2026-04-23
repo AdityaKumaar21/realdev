@@ -101,10 +101,3 @@ cargo run -p student-cli -- \
 2. Add the problem definition to `web/src/App.tsx` (PROBLEMS array)
 3. Write a reference solution in `problems/pXXX-name/solution.rs`
 
-## Auth
-
-Students register once, get a UUID token, use it for all submissions. Token stored in `Authorization: Bearer <token>` header. Passwords hashed with argon2.
-
-## Security note
-
-The grader runs student code directly on the host. Fine for a trusted classroom, **not safe for public use** — a malicious submission could affect the host. For production: run submissions in Docker containers (`--network=none`, scratch DB per run) or Firecracker microVMs.
