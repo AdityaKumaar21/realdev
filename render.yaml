@@ -9,7 +9,7 @@ services:
     name: api-trainer-server
     env: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: free
     envVars:
       - key: DATABASE_URL
         fromDatabase:
