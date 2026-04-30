@@ -4,7 +4,6 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -44,69 +43,3 @@ pub async fn list_rows(
     Ok(Json(result))
 }
 
-#[derive(Deserialize)]
-pub struct UserBody {
-    pub name: String,
-}
-
-#[derive(Serialize)]
-pub struct UserRow {
-    pub id: i32,
-    pub name: String,
-}
-
-pub async fn insert_row(
-    State(state): State<Arc<AppState>>,
-    _user: AuthenticatedUser,
-    Path(table): Path<String>,
-    Json(body): Json<UserBody>,
-) -> Result<Json<UserRow>, (StatusCode, String)> {
-    check_table(&table)?;
-
-    let row = sqlx::query_as::<_, (i32, String)>(
-        &format!("INSERT INTO {table} (name) VALUES ($1) RETURNING id, name"),
-    )
-    .bind(&body.name)
-    .fetch_one(&state.db)
-    .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    Ok(Json(UserRow { id: row.0, name: row.1 }))
-}
-
-pub async fn update_row(
-    State(state): State<Arc<AppState>>,
-    _user: AuthenticatedUser,
-    Path((table, id)): Path<(String, i32)>,
-    Json(body): Json<UserBody>,
-) -> Result<Json<UserRow>, (StatusCode, String)> {
-    check_table(&table)?;
-
-    let row = sqlx::query_as::<_, (i32, String)>(
-        &format!("UPDATE {table} SET name = $1 WHERE id = $2 RETURNING id, name"),
-    )
-    .bind(&body.name)
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-    .ok_or((StatusCode::NOT_FOUND, format!("row {id} not found")))?;
-
-    Ok(Json(UserRow { id: row.0, name: row.1 }))
-}
-
-pub async fn delete_row(
-    State(state): State<Arc<AppState>>,
-    _user: AuthenticatedUser,
-    Path((table, id)): Path<(String, i32)>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    check_table(&table)?;
-
-    sqlx::query(&format!("DELETE FROM {table} WHERE id = $1"))
-        .bind(id)
-        .execute(&state.db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    Ok(StatusCode::NO_CONTENT)
-}
