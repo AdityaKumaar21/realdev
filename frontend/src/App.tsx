@@ -121,9 +121,13 @@ function AuthScreen({ onAuth }: { onAuth: (token: string, username: string) => v
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      const data = await res.json();
-      if (!res.ok) setError(typeof data === "string" ? data : `Error ${res.status}`);
-      else onAuth(data.token, data.username);
+      if (!res.ok) {
+        const text = await res.text();
+        setError(text || `Error ${res.status}`);
+      } else {
+        const data = await res.json();
+        onAuth(data.token, data.username);
+      }
     } catch {
       setError("Network error — is the grader running?");
     } finally {
