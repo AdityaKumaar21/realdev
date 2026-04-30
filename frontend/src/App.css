@@ -1,3 +1,23 @@
+/* ── Mobile nav (hidden on desktop) ────────────────────────────────────── */
+.mobile-nav { display: none; }
+
+/* ── Resize handles ──────────────────────────────────────────────────────── */
+.resize-handle {
+  width: 4px;
+  flex-shrink: 0;
+  background: #1e1e22;
+  cursor: col-resize;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 5;
+}
+.resize-handle:hover { background: #6366f1; }
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0 -3px;
+}
+
 /* ── Reset ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -257,8 +277,7 @@ body {
 .app { display: flex; flex-direction: column; height: 100vh; }
 
 .main {
-  display: grid;
-  grid-template-columns: 200px 280px 1fr 268px;
+  display: flex;
   flex: 1;
   overflow: hidden;
 }
@@ -272,6 +291,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex-shrink: 0;
+  overflow-x: hidden;
 }
 
 .sidebar-label {
@@ -334,6 +355,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex-shrink: 0;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 .ticket-header { display: flex; flex-direction: column; gap: 8px; }
@@ -415,6 +439,8 @@ body {
   flex-direction: column;
   background: #1e1e1e;
   overflow: hidden;
+  flex: 1;
+  min-width: 0;
 }
 
 .editor-toolbar {
@@ -644,6 +670,8 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .results-header {
@@ -922,4 +950,115 @@ body {
   margin: 0;
   border-top: 1px solid #27272a;
   line-height: 1.5;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+/* Auth card — small phones */
+@media (max-width: 420px) {
+  .auth-card { width: calc(100% - 32px); padding: 28px 20px; }
+}
+
+/* Tablet: keep flex, just tweak title */
+@media (max-width: 1099px) and (min-width: 768px) {
+  .ticket-main-title { font-size: 15px; }
+}
+
+/* Small tablet: hide sidebar + its handle */
+@media (max-width: 767px) and (min-width: 640px) {
+  .sidebar { display: none; }
+  .main > .resize-handle:nth-child(2) { display: none; }
+  .header-context, .header-divider { display: none; }
+}
+
+/* Hide all resize handles on mobile (panels are stacked) */
+@media (max-width: 639px) {
+  .resize-handle { display: none; }
+}
+
+/* Mobile: single column with bottom tab nav */
+@media (max-width: 639px) {
+  body { overflow: hidden; }
+
+  .header-context, .header-divider { display: none; }
+  .header-center { display: none; }
+  .user-name { display: none; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .sidebar,
+  .description,
+  .editor-panel,
+  .results-panel {
+    display: none;
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    background: #0d0d10;
+  }
+
+  .sidebar.mobile-active,
+  .description.mobile-active,
+  .results-panel.mobile-active {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .editor-panel.mobile-active {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar.mobile-active {
+    background: #141416;
+    padding: 12px 8px;
+    gap: 4px;
+  }
+
+  /* Bottom nav */
+  .mobile-nav {
+    display: flex;
+    background: #141416;
+    border-top: 1px solid #1e1e22;
+    height: 52px;
+    flex-shrink: 0;
+  }
+
+  .mobile-nav-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    color: #52525b;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    transition: color 0.15s;
+    position: relative;
+    padding: 0;
+  }
+  .mobile-nav-tab.active { color: #6366f1; }
+  .mobile-nav-tab:hover:not(.active) { color: #a1a1aa; }
+
+  .mobile-nav-icon { font-size: 14px; line-height: 1; }
+
+  .mobile-nav-tab .tab-dot {
+    position: absolute;
+    top: 6px;
+    right: calc(50% - 14px);
+  }
 }

@@ -244,14 +244,20 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
   const [allResults, setAllResults] = useState<Record<string, GradeResult>>({});
   const result = problem ? (allResults[problem.id] ?? null) : null;
 
+  const [sidebarW, setSidebarW] = useState(200);
+  const [descW, setDescW] = useState(280);
+  const [resultsW, setResultsW] = useState(268);
+
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState<string | null>(null);
   const [rightTab, setRightTab] = useState<"output" | "testcases" | "database">("output");
+  const [mobileTab, setMobileTab] = useState<"problems" | "desc" | "editor" | "output">("editor");
   const handleSubmitRef = useRef<() => void>(() => {});
 
   function selectProblem(i: number) {
     setProblemIdx(i);
     setError(null);
+    setMobileTab("desc");
   }
 
   async function handleSubmit() {
@@ -272,6 +278,7 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
         const data: GradeResult = await res.json();
         setAllResults((prev) => ({ ...prev, [problem.id]: data }));
         setRightTab("output");
+        setMobileTab("output");
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Network error");
@@ -335,7 +342,7 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
 
       <div className="main">
         {/* Sidebar */}
-        <aside className="sidebar">
+        <aside className={`sidebar${mobileTab === "problems" ? " mobile-active" : ""}`} style={{ width: sidebarW }}>
           <div className="sidebar-label">Backlog</div>
           {problems.map((p, i) => {
             const r = allResults[p.id];
@@ -354,9 +361,10 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
             );
           })}
         </aside>
+        <ResizeHandle onResize={(dx) => setSidebarW(w => Math.max(120, Math.min(360, w + dx)))} />
 
         {/* Ticket Description */}
-        <section className="description">
+        <section className={`description${mobileTab === "desc" ? " mobile-active" : ""}`} style={{ width: descW }}>
           <div className="ticket-header">
             <div className="ticket-meta">
               <span className="ticket-number">{problem.ticket}</span>
@@ -408,9 +416,10 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
             </div>
           </div>
         </section>
+        <ResizeHandle onResize={(dx) => setDescW(w => Math.max(160, Math.min(520, w + dx)))} />
 
         {/* Editor */}
-        <section className="editor-panel">
+        <section className={`editor-panel${mobileTab === "editor" ? " mobile-active" : ""}`}>
           <div className="editor-toolbar">
             <div className="editor-toolbar-left">
               <span className="file-dot" />
@@ -440,9 +449,10 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
             />
           </div>
         </section>
+        <ResizeHandle onResize={(dx) => setResultsW(w => Math.max(160, Math.min(520, w - dx)))} />
 
         {/* Results + DB panel */}
-        <section className="results-panel">
+        <section className={`results-panel${mobileTab === "output" ? " mobile-active" : ""}`} style={{ width: resultsW }}>
           <div className="results-header">
             <div className="panel-tabs">
               <button className={`panel-tab${rightTab === "output" ? " active" : ""}`} onClick={() => setRightTab("output")}>
@@ -555,8 +565,42 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
           )}
         </section>
       </div>
+      <nav className="mobile-nav">
+        <button className={`mobile-nav-tab${mobileTab === "problems" ? " active" : ""}`} onClick={() => setMobileTab("problems")}>
+          <span className="mobile-nav-icon">☰</span>Problems
+        </button>
+        <button className={`mobile-nav-tab${mobileTab === "desc" ? " active" : ""}`} onClick={() => setMobileTab("desc")}>
+          <span className="mobile-nav-icon">📋</span>Task
+        </button>
+        <button className={`mobile-nav-tab${mobileTab === "editor" ? " active" : ""}`} onClick={() => setMobileTab("editor")}>
+          <span className="mobile-nav-icon">✏</span>Code
+        </button>
+        <button className={`mobile-nav-tab${mobileTab === "output" ? " active" : ""}`} onClick={() => setMobileTab("output")}>
+          <span className="mobile-nav-icon">▶</span>Output
+          {result && <span className={`tab-dot ${result.passed ? "pass" : "fail"}`} />}
+        </button>
+      </nav>
     </div>
   );
+}
+
+function ResizeHandle({ onResize }: { onResize: (delta: number) => void }) {
+  function handlePointerDown(e: React.PointerEvent) {
+    e.preventDefault();
+    let lastX = e.clientX;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    function onMove(ev: PointerEvent) { onResize(ev.clientX - lastX); lastX = ev.clientX; }
+    function onUp() {
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  }
+  return <div className="resize-handle" onPointerDown={handlePointerDown} />;
 }
 
 function GradingStep({ label, active }: { label: string; active?: boolean }) {
