@@ -3,10 +3,9 @@ FROM rust:latest
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
-COPY grader/ grader/
+COPY server/ server/
 COPY shared/ shared/
-COPY student-cli/ student-cli/
 
-RUN cargo build --release -p grader
+RUN cargo build --release -p server
 
-CMD ["./target/release/grader"]
+CMD ["./target/release/server"]

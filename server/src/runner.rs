@@ -4,7 +4,8 @@ use shared::{GradeResult, Submission, TestCaseResult};
 use tokio::process::Command;
 
 pub async fn grade(sub: &Submission, db: &sqlx::PgPool) -> anyhow::Result<GradeResult> {
-    let problem = problems::load(&sub.problem_id)
+    let problem = problems::load(&sub.problem_id, db)
+        .await
         .with_context(|| format!("unknown problem: {}", sub.problem_id))?;
 
     problems::seed(&sub.problem_id, db).await?;
@@ -53,8 +54,7 @@ serde_json = "1"
 
     // Pick a free port, spawn the student's server.
     let port = free_port()?;
-    let db_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let bin = proj.join("target/debug/submission");
     let mut child = Command::new(&bin)
@@ -84,20 +84,20 @@ serde_json = "1"
     for test in &problem.test_cases {
         let url = format!("{base}{}", test.path);
 
-        let req = match test.method {
+        let req = match test.method.as_str() {
             "GET" => client.get(&url),
             "POST" => {
                 let r = client.post(&url);
-                if let Some(body) = test.body {
-                    r.header("Content-Type", "application/json").body(body.to_string())
+                if let Some(body) = &test.body {
+                    r.header("Content-Type", "application/json").body(body.clone())
                 } else {
                     r
                 }
             }
             "PUT" => {
                 let r = client.put(&url);
-                if let Some(body) = test.body {
-                    r.header("Content-Type", "application/json").body(body.to_string())
+                if let Some(body) = &test.body {
+                    r.header("Content-Type", "application/json").body(body.clone())
                 } else {
                     r
                 }
@@ -106,8 +106,10 @@ serde_json = "1"
             other => {
                 details.push(TestCaseResult {
                     name: test.name.clone(),
+                    method: test.method.clone(),
+                    path: test.path.clone(),
                     passed: false,
-                    expected: test.expected_json.to_string(),
+                    expected: test.expected_json.clone(),
                     actual: String::new(),
                     message: Some(format!("unsupported method: {other}")),
                 });
@@ -125,11 +127,17 @@ serde_json = "1"
             Err(_) => (String::new(), Some("request timed out after 10s".into())),
             Ok(Err(e)) => (String::new(), Some(format!("request failed: {e}"))),
             Ok(Ok(resp)) => {
-                let status = resp.status();
+                let actual_status = resp.status().as_u16();
                 match resp.text().await {
                     Ok(body) => {
-                        if !status.is_success() {
-                            (body.clone(), Some(format!("HTTP {status}")))
+                        if actual_status != test.expected_status {
+                            (
+                                body,
+                                Some(format!(
+                                    "expected HTTP {}, got HTTP {actual_status}",
+                                    test.expected_status
+                                )),
+                            )
                         } else {
                             (body, None)
                         }
@@ -139,15 +147,17 @@ serde_json = "1"
             }
         };
 
-        let passed = err_msg.is_none() && compare_json(&actual_str, test.expected_json);
+        let passed = err_msg.is_none() && compare_json(&actual_str, &test.expected_json);
         if passed {
             passed_count += 1;
         }
 
         details.push(TestCaseResult {
             name: test.name.clone(),
+            method: test.method.clone(),
+            path: test.path.clone(),
             passed,
-            expected: test.expected_json.to_string(),
+            expected: test.expected_json.clone(),
             actual: actual_str,
             message: err_msg,
         });
@@ -169,7 +179,6 @@ serde_json = "1"
 fn free_port() -> anyhow::Result<u16> {
     let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
     Ok(listener.local_addr()?.port())
-    // listener drops here, releasing the port — small race but fine for a prototype
 }
 
 async fn wait_ready(client: &reqwest::Client, base: &str, timeout_ms: u64) -> anyhow::Result<()> {

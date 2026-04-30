@@ -34,6 +34,8 @@ pub struct GradeResult {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestCaseResult {
     pub name: String,
+    pub method: String,
+    pub path: String,
     pub passed: bool,
     pub expected: String,
     pub actual: String,
