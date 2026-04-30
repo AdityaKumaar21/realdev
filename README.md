@@ -6,18 +6,18 @@ A platform where students learn backend engineering by writing real HTTP API han
 
 ## What it is
 
-Students pick a ticket, read a spec, implement a working Axum HTTP server, and submit. The grader spins up their server, fires real HTTP requests at it, and checks the responses. Same loop real engineers do every day.
+Students pick a ticket, read a spec, implement a working Axum HTTP server, and submit. The server spins up their code, fires real HTTP requests at it, and checks the responses. Same loop real engineers do every day.
 
 Supports multiple languages in future. Currently: Rust (Axum).
 
 ## Architecture
 
 ```
-  BROWSER                         GRADER (port 3000)                POSTGRES
-  ───────                         ──────────────────                ────────
+  BROWSER                         SERVER (port 3000)                 POSTGRES
+  ───────                         ──────────────────                 ────────
 
 ┌──────────────────────┐
-│  Web UI              │   POST /register
+│  Frontend            │   POST /register
 │  React + Vite        │   POST /login                         ┌────────────┐
 │  Monaco editor       │ ─────────────────────────────────▶    │  accounts  │
 │                      │ ◀─────────────── { token }            │  table     │
@@ -59,6 +59,14 @@ Supports multiple languages in future. Currently: Rust (Axum).
 └──────────────────────┘ ◀─────────────────────────────────    └────────────┘
 ```
 
+## Project Structure
+
+```
+server/        Rust backend — auth, problem listing, grading, DB API
+shared/        Shared types (GradeResult, Submission, TestCaseResult)
+frontend/      React + Vite + Monaco editor
+```
+
 ## Problems
 
 | ID | Title | Tags |
@@ -88,7 +96,7 @@ podman compose up --build
 Open <http://localhost:5173> once you see:
 
 ```text
-grader-1  | INFO grader: grader listening on 0.0.0.0:3000
+server-1  | INFO server: server listening on 0.0.0.0:3000
 ```
 
 First build takes a few minutes (compiling Rust). Subsequent starts are fast — build cache is persisted in a volume.
@@ -102,45 +110,32 @@ Prerequisites: Rust (stable 1.88+), PostgreSQL, Node.js 18+
 createdb api_trainer
 export DATABASE_URL=postgres://postgres:postgres@localhost:5432/api_trainer
 
-# 2. Start the grader (auto-runs migrations on startup)
-cargo run -p grader
+# 2. Start the server (auto-runs migrations on startup)
+cargo run -p server
 
-# 3. Start the web UI (in a separate terminal)
-cd web && npm install && npm run dev
+# 3. Start the frontend (in a separate terminal)
+cd frontend && npm install && npm run dev
 # Open http://localhost:5173
 ```
 
 ## How grading works
 
 1. Student registers/logs in → gets an auth token
-2. Submits source code + problem ID via web UI or CLI
-3. Grader resets DB to known state (seeds fixtures for that problem)
-4. Grader writes code into a persistent cargo project under `/tmp/api-trainer-cache/{problem_id}/`
+2. Submits source code + problem ID via web UI
+3. Server resets DB to known state (seeds fixtures for that problem)
+4. Server writes code into a persistent cargo project under `/tmp/api-trainer-cache/{problem_id}/`
 5. Compiles with `cargo build` (debug, incremental — first run ~30-60s, subsequent ~2-3s)
 6. Spawns the student's server with `DATABASE_URL` + a free `PORT`
 7. Fires HTTP requests matching the problem's test cases
 8. Compares JSON responses structurally (key order doesn't matter)
 9. Returns pass/fail per test case
 
-## Using the CLI
-
-```sh
-# Register
-cargo run -p student-cli -- register --username alice
-
-# Login
-cargo run -p student-cli -- login --username alice
-
-# Submit
-cargo run -p student-cli -- \
-    --token <your-token> \
-    --file problems/p001-list-users/solution.rs \
-    --problem p001-list-users
-```
-
 ## Adding a new problem
 
-1. Add a `Problem` struct to `grader/src/problems.rs` with test cases and seed data
-2. Add the problem definition to `web/src/App.tsx` (PROBLEMS array)
-3. Write a reference solution in `problems/pXXX-name/solution.rs`
+1. Add a `Problem` struct to `server/src/problems.rs` with test cases and seed data
+2. Add the problem definition to `frontend/src/App.tsx` (PROBLEMS array)
+3. Write a reference solution in `SOLUTIONS.md`
 
+## Reference Solutions
+
+See [SOLUTIONS.md](SOLUTIONS.md) for reference implementations of each problem.

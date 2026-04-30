@@ -4,6 +4,8 @@ import "./App.css";
 
 interface TestCaseResult {
   name: string;
+  method: string;
+  path: string;
   passed: boolean;
   expected: string;
   actual: string;
@@ -19,6 +21,15 @@ interface GradeResult {
   test_details: TestCaseResult[];
 }
 
+interface TestCaseSummary {
+  name: string;
+  method: string;
+  path: string;
+  body: string | null;
+  expected_status: number;
+  expected_json: string;
+}
+
 interface Problem {
   id: string;
   ticket: string;
@@ -27,231 +38,19 @@ interface Problem {
   tags: string[];
   tables: string[];
   description: string;
-  schema: string;
-  expected: string;
+  schema_sql: string;
+  expected_display: string;
   starter: string;
+  test_cases: TestCaseSummary[];
 }
 
 interface DbRow { id: number; name: string; }
-
-
-const PROBLEMS: Problem[] = [
-  {
-    id: "p001-list-users",
-    ticket: "RD-001",
-    title: "List All Users",
-    difficulty: "Easy",
-    tags: ["GET", "Database", "SELECT"],
-    tables: ["users"],
-    description: "Implement a GET /users endpoint that returns all users from the database as a JSON array, ordered by id ascending.",
-    schema: `CREATE TABLE users (
-    id   SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
-);`,
-    expected: `GET /users → 200 OK
-[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"},{"id":3,"name":"Carol"}]`,
-    starter: `use axum::{extract::State, routing::get, Json, Router};
-use serde::Serialize;
-use sqlx::{postgres::PgPoolOptions, PgPool};
-
-#[derive(Serialize, sqlx::FromRow)]
-struct User {
-    id: i32,
-    name: String,
-}
-
-async fn list_users(State(pool): State<PgPool>) -> Json<Vec<User>> {
-    // TODO: query users table ordered by id
-    todo!()
-}
-
-#[tokio::main]
-async fn main() {
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
-    let port = std::env::var("PORT").unwrap_or_else(|_| "4000".into());
-    let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await.unwrap();
-    let app = Router::new().route("/users", get(list_users)).with_state(pool);
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
-`,
-  },
-  {
-    id: "p002-get-user",
-    ticket: "RD-002",
-    title: "Get User by ID",
-    difficulty: "Easy",
-    tags: ["GET", "Path Params", "404"],
-    tables: ["users"],
-    description: "Implement GET /users/:id. Return the user if found. Return 404 if no user exists with that id.",
-    schema: `CREATE TABLE users (
-    id   SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
-);`,
-    expected: `GET /users/2  → 200 OK   {"id":2,"name":"Bob"}
-GET /users/99 → 404 Not Found`,
-    starter: `use axum::{extract::{Path, State}, http::StatusCode, routing::get, Json, Router};
-use serde::Serialize;
-use sqlx::{postgres::PgPoolOptions, PgPool};
-
-#[derive(Serialize, sqlx::FromRow)]
-struct User { id: i32, name: String }
-
-async fn get_user(
-    State(pool): State<PgPool>,
-    Path(id): Path<i32>,
-) -> Result<Json<User>, StatusCode> {
-    // TODO: fetch by id, return 404 if missing
-    todo!()
-}
-
-#[tokio::main]
-async fn main() {
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
-    let port = std::env::var("PORT").unwrap_or_else(|_| "4000".into());
-    let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await.unwrap();
-    let app = Router::new().route("/users/:id", get(get_user)).with_state(pool);
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
-`,
-  },
-  {
-    id: "p003-create-user",
-    ticket: "RD-003",
-    title: "Create User",
-    difficulty: "Easy",
-    tags: ["POST", "Insert", "201"],
-    tables: ["users"],
-    description: "Implement POST /users. Accept a JSON body with a name field, insert the user, and return the created user with status 201.",
-    schema: `CREATE TABLE users (
-    id   SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
-);`,
-    expected: `POST /users {"name":"Dave"} → 201 Created
-{"id":4,"name":"Dave"}`,
-    starter: `use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
-use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgPoolOptions, PgPool};
-
-#[derive(Serialize, sqlx::FromRow)]
-struct User { id: i32, name: String }
-
-#[derive(Deserialize)]
-struct CreateUser { name: String }
-
-async fn create_user(
-    State(pool): State<PgPool>,
-    Json(body): Json<CreateUser>,
-) -> (StatusCode, Json<User>) {
-    // TODO: INSERT INTO users (name) VALUES ($1) RETURNING id, name
-    todo!()
-}
-
-#[tokio::main]
-async fn main() {
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
-    let port = std::env::var("PORT").unwrap_or_else(|_| "4000".into());
-    let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await.unwrap();
-    let app = Router::new().route("/users", post(create_user)).with_state(pool);
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
-`,
-  },
-  {
-    id: "p004-user-stats",
-    ticket: "RD-004",
-    title: "User Statistics",
-    difficulty: "Medium",
-    tags: ["GET", "Aggregate", "COUNT"],
-    tables: ["users"],
-    description: "Implement GET /stats that returns aggregate statistics about the users table. The response must include the total user count.",
-    schema: `CREATE TABLE users (
-    id   SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
-);`,
-    expected: `GET /stats → 200 OK
-{"total_users":3}`,
-    starter: `use axum::{extract::State, routing::get, Json, Router};
-use serde::Serialize;
-use sqlx::{postgres::PgPoolOptions, PgPool, Row};
-
-#[derive(Serialize)]
-struct Stats { total_users: i64 }
-
-async fn user_stats(State(pool): State<PgPool>) -> Json<Stats> {
-    // TODO: SELECT COUNT(*) FROM users
-    // Use sqlx::query (not query!) to avoid compile-time DB check
-    todo!()
-}
-
-#[tokio::main]
-async fn main() {
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
-    let port = std::env::var("PORT").unwrap_or_else(|_| "4000".into());
-    let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await.unwrap();
-    let app = Router::new().route("/stats", get(user_stats)).with_state(pool);
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
-`,
-  },
-  {
-    id: "p005-update-user",
-    ticket: "RD-005",
-    title: "Update User",
-    difficulty: "Medium",
-    tags: ["PUT", "Update", "404"],
-    tables: ["users"],
-    description: "Implement PUT /users/:id. Accept a JSON body with a name field, update the user, and return the updated user. Return 404 if the user does not exist.",
-    schema: `CREATE TABLE users (
-    id   SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
-);`,
-    expected: `PUT /users/1 {"name":"Alicia"} → 200 OK
-{"id":1,"name":"Alicia"}`,
-    starter: `use axum::{extract::{Path, State}, http::StatusCode, routing::put, Json, Router};
-use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgPoolOptions, PgPool};
-
-#[derive(Serialize, sqlx::FromRow)]
-struct User { id: i32, name: String }
-
-#[derive(Deserialize)]
-struct UpdateUser { name: String }
-
-async fn update_user(
-    State(pool): State<PgPool>,
-    Path(id): Path<i32>,
-    Json(body): Json<UpdateUser>,
-) -> Result<Json<User>, StatusCode> {
-    // TODO: UPDATE users SET name = $1 WHERE id = $2 RETURNING id, name
-    todo!()
-}
-
-#[tokio::main]
-async fn main() {
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
-    let port = std::env::var("PORT").unwrap_or_else(|_| "4000".into());
-    let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await.unwrap();
-    let app = Router::new().route("/users/:id", put(update_user)).with_state(pool);
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
-`,
-  },
-];
 
 // ─── DB Viewer ───────────────────────────────────────────────────────────────
 
 function DbViewer({ table, token }: { table: string; token: string }) {
   const [rows, setRows] = useState<DbRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editVal, setEditVal] = useState("");
-  const [newName, setNewName] = useState("");
-  const [adding, setAdding] = useState(false);
 
   async function fetchRows() {
     setLoading(true);
@@ -266,37 +65,6 @@ function DbViewer({ table, token }: { table: string; token: string }) {
   }
 
   useEffect(() => { fetchRows(); }, [table]);
-
-  async function saveEdit(id: number) {
-    await fetch(`http://localhost:3000/db/${table}/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: editVal }),
-    });
-    setEditingId(null);
-    fetchRows();
-  }
-
-  async function deleteRow(id: number) {
-    await fetch(`http://localhost:3000/db/${table}/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    fetchRows();
-  }
-
-  async function addRow() {
-    if (!newName.trim()) return;
-    setAdding(true);
-    await fetch(`http://localhost:3000/db/${table}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: newName.trim() }),
-    });
-    setNewName("");
-    setAdding(false);
-    fetchRows();
-  }
 
   return (
     <div className="db-viewer">
@@ -316,61 +84,15 @@ function DbViewer({ table, token }: { table: string; token: string }) {
             <tr>
               <th>id</th>
               <th>name</th>
-              <th />
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.id}>
                 <td className="db-id">{row.id}</td>
-                <td>
-                  {editingId === row.id ? (
-                    <input
-                      className="db-edit-input"
-                      value={editVal}
-                      onChange={(e) => setEditVal(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveEdit(row.id);
-                        if (e.key === "Escape") setEditingId(null);
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <span
-                      className="db-cell-name"
-                      onClick={() => { setEditingId(row.id); setEditVal(row.name); }}
-                    >
-                      {row.name}
-                    </span>
-                  )}
-                </td>
-                <td className="db-actions">
-                  {editingId === row.id ? (
-                    <>
-                      <button className="db-btn save" onClick={() => saveEdit(row.id)}>✓</button>
-                      <button className="db-btn cancel" onClick={() => setEditingId(null)}>✕</button>
-                    </>
-                  ) : (
-                    <button className="db-btn del" onClick={() => deleteRow(row.id)}>×</button>
-                  )}
-                </td>
+                <td>{row.name}</td>
               </tr>
             ))}
-            <tr className="db-add-row">
-              <td className="db-id">—</td>
-              <td>
-                <input
-                  className="db-edit-input"
-                  placeholder="new name…"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addRow()}
-                />
-              </td>
-              <td>
-                <button className="db-btn save" onClick={addRow} disabled={adding || !newName.trim()}>+</button>
-              </td>
-            </tr>
           </tbody>
         </table>
       </div>
@@ -387,7 +109,7 @@ function AuthScreen({ onAuth }: { onAuth: (token: string, username: string) => v
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -467,26 +189,58 @@ function DiffBadge({ level }: { level: Problem["difficulty"] }) {
   return <span className={`diff-badge diff-${level.toLowerCase()}`}>{level}</span>;
 }
 
+// ─── Problem list hook ────────────────────────────────────────────────────────
+
+function useProblemList(): { problems: Problem[]; loadError: string | null } {
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("http://localhost:3000/problems")
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data: Problem[]) => setProblems(data))
+      .catch((e) => setLoadError(e.message ?? "Failed to load problems"));
+  }, []);
+
+  return { problems, loadError };
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 function MainApp({ token, username, onLogout }: { token: string; username: string; onLogout: () => void }) {
+  const { problems, loadError } = useProblemList();
   const [problemIdx, setProblemIdx] = useState(0);
-  const problem = PROBLEMS[problemIdx];
 
-  const [codes, setCodes] = useState<Record<string, string>>(
-    Object.fromEntries(PROBLEMS.map((p) => [p.id, p.starter]))
-  );
-  const code = codes[problem.id];
+  const [codes, setCodes] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (problems.length === 0) return;
+    setCodes((prev) => {
+      const next = { ...prev };
+      for (const p of problems) {
+        if (!next[p.id]) next[p.id] = p.starter;
+      }
+      return next;
+    });
+  }, [problems]);
+
+  const problem = problems[problemIdx];
+  const code = problem ? (codes[problem.id] ?? "") : "";
+
   function setCode(val: string) {
+    if (!problem) return;
     setCodes((prev) => ({ ...prev, [problem.id]: val }));
   }
 
   const [allResults, setAllResults] = useState<Record<string, GradeResult>>({});
-  const result = allResults[problem.id] ?? null;
+  const result = problem ? (allResults[problem.id] ?? null) : null;
 
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [rightTab, setRightTab] = useState<"output" | "database">("output");
+  const [rightTab, setRightTab] = useState<"output" | "testcases" | "database">("output");
   const handleSubmitRef = useRef<() => void>(() => {});
 
   function selectProblem(i: number) {
@@ -495,7 +249,7 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
   }
 
   async function handleSubmit() {
-    if (status === "submitting") return;
+    if (status === "submitting" || !problem) return;
     setStatus("submitting");
     setError(null);
     try {
@@ -511,6 +265,7 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
       } else {
         const data: GradeResult = await res.json();
         setAllResults((prev) => ({ ...prev, [problem.id]: data }));
+        setRightTab("output");
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Network error");
@@ -530,6 +285,25 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
 
   const passedCount = Object.values(allResults).filter((r) => r.passed).length;
 
+  if (loadError) {
+    return (
+      <div className="results-empty">
+        <div className="empty-icon">✗</div>
+        <p>Failed to load problems</p>
+        <p className="empty-hint">{loadError} — is the grader running?</p>
+      </div>
+    );
+  }
+
+  if (problems.length === 0) {
+    return (
+      <div className="results-empty">
+        <div className="empty-icon">…</div>
+        <p>Loading problems…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -540,9 +314,9 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
         </div>
         <div className="header-center">
           <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${(passedCount / PROBLEMS.length) * 100}%` }} />
+            <div className="progress-fill" style={{ width: `${(passedCount / problems.length) * 100}%` }} />
           </div>
-          <span className="progress-label">{passedCount}/{PROBLEMS.length} solved</span>
+          <span className="progress-label">{passedCount}/{problems.length} solved</span>
         </div>
         <div className="header-right">
           <div className="user-chip">
@@ -557,7 +331,7 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
         {/* Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-label">Backlog</div>
-          {PROBLEMS.map((p, i) => {
+          {problems.map((p, i) => {
             const r = allResults[p.id];
             const statusClass = r ? (r.passed ? "done" : "failed") : "";
             return (
@@ -593,12 +367,31 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
 
           <div className="ticket-section">
             <div className="section-label">Schema</div>
-            <pre className="code-block">{problem.schema}</pre>
+            <pre className="code-block">{problem.schema_sql}</pre>
           </div>
 
           <div className="ticket-section">
             <div className="section-label">Expected</div>
-            <pre className="code-block accent">{problem.expected}</pre>
+            <pre className="code-block accent">{problem.expected_display}</pre>
+          </div>
+
+          <div className="ticket-section">
+            <div className="section-label">Test Cases</div>
+            <div className="tc-list">
+              {problem.test_cases.map((tc) => (
+                <div key={tc.name} className="tc-preview">
+                  <div className="tc-preview-header">
+                    <span className={`method-badge method-${tc.method.toLowerCase()}`}>{tc.method}</span>
+                    <code className="tc-preview-path">{tc.path}</code>
+                    <span className="tc-preview-status">→ {tc.expected_status}</span>
+                  </div>
+                  {tc.body && (
+                    <pre className="tc-preview-block">Body: {tc.body}</pre>
+                  )}
+                  <pre className="tc-preview-block">{tc.expected_json}</pre>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="ticket-section">
@@ -650,6 +443,10 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
                 Output
                 {result && <span className={`tab-dot ${result.passed ? "pass" : "fail"}`} />}
               </button>
+              <button className={`panel-tab${rightTab === "testcases" ? " active" : ""}`} onClick={() => setRightTab("testcases")}>
+                Test Cases
+                <span className="tab-count">{problem.test_cases.length}</span>
+              </button>
               <button className={`panel-tab${rightTab === "database" ? " active" : ""}`} onClick={() => setRightTab("database")}>
                 Database
               </button>
@@ -689,11 +486,21 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
                       <pre className="result-pre">{result.compile_error}</pre>
                     </div>
                   )}
+                  {result.runtime_error && (
+                    <div className="result-block error">
+                      <div className="result-block-label">Runtime Error</div>
+                      <pre className="result-pre">{result.runtime_error}</pre>
+                    </div>
+                  )}
                   {result.test_details.map((t, i) => (
                     <div key={t.name} className={`test-card ${t.passed ? "pass" : "fail"}`} style={{ animationDelay: `${i * 80}ms` }}>
                       <div className="test-card-header">
                         <span className={`test-icon ${t.passed ? "pass" : "fail"}`}>{t.passed ? "✓" : "✗"}</span>
                         <span className="test-card-name">{t.name}</span>
+                      </div>
+                      <div className="test-card-endpoint">
+                        <span className={`method-badge method-${t.method.toLowerCase()}`}>{t.method}</span>
+                        <code className="test-card-path">{t.path}</code>
                       </div>
                       {!t.passed && (
                         <div className="test-card-diff">
@@ -717,6 +524,28 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
 
           {rightTab === "database" && (
             <DbViewer table={problem.tables[0]} token={token} />
+          )}
+
+          {rightTab === "testcases" && (
+            <div className="tc-panel-list">
+              {problem.test_cases.map((tc) => {
+                const tcResult = result?.test_details.find((td) => td.name === tc.name);
+                return (
+                  <div key={tc.name} className={`tc-panel-card${tcResult ? (tcResult.passed ? " pass" : " fail") : ""}`}>
+                    <div className="tc-panel-header">
+                      <span className={`method-badge method-${tc.method.toLowerCase()}`}>{tc.method}</span>
+                      <code className="tc-panel-path">{tc.path}</code>
+                      <span className="tc-panel-status">→ {tc.expected_status}</span>
+                      {tcResult && <span className={`tc-panel-result ${tcResult.passed ? "pass" : "fail"}`}>{tcResult.passed ? "✓" : "✗"}</span>}
+                    </div>
+                    {tc.body && (
+                      <pre className="tc-panel-block">Body: {tc.body}</pre>
+                    )}
+                    <pre className="tc-panel-block">{tc.expected_json}</pre>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </section>
       </div>

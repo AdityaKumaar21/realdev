@@ -507,6 +507,22 @@ body {
 .tab-dot.pass { background: #22c55e; }
 .tab-dot.fail { background: #ef4444; }
 
+.tab-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #71717a;
+  background: #1c1c1f;
+  border: 1px solid #2a2a2e;
+  padding: 0 5px;
+  border-radius: 4px;
+  line-height: 16px;
+}
+.panel-tab.active .tab-count {
+  color: #a1a1aa;
+  background: #2a2a2e;
+  border-color: #3f3f46;
+}
+
 /* ── DB Viewer ───────────────────────────────────────────────────────────── */
 .db-viewer {
   display: flex;
@@ -749,6 +765,27 @@ body {
 .test-icon.fail { color: #ef4444; }
 .test-card-name { font-size: 12px; color: #a1a1aa; font-weight: 500; }
 
+.test-card-endpoint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 6px;
+}
+.test-card-path { font-size: 11px; color: #71717a; font-family: monospace; }
+
+.method-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.method-get    { background: rgba(34,197,94,0.15);  color: #22c55e; }
+.method-post   { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.method-put    { background: rgba(234,179,8,0.15);  color: #eab308; }
+.method-delete { background: rgba(239,68,68,0.15);  color: #ef4444; }
+
 .test-card-diff {
   padding: 0 12px 10px;
   display: flex;
@@ -814,4 +851,75 @@ body {
   word-break: break-all;
   max-height: 180px;
   overflow-y: auto;
+}
+
+/* ── Test case preview (description panel) ─────────────────────────────────── */
+.tc-list { display: flex; flex-direction: column; gap: 6px; }
+.tc-preview {
+  background: #141416;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tc-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #1c1c1f;
+}
+.tc-preview-path { font-size: 11px; color: #a1a1aa; font-family: monospace; flex: 1; }
+.tc-preview-status { font-size: 10px; color: #52525b; font-family: monospace; }
+.tc-preview-block {
+  padding: 5px 10px;
+  font-size: 11px;
+  font-family: monospace;
+  color: #71717a;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  border-top: 1px solid #27272a;
+}
+
+/* ── Test Cases panel (results panel) ───────────────────────────────────────── */
+.tc-panel-list {
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.tc-panel-card {
+  background: #141416;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tc-panel-card.pass { background: rgba(34,197,94,0.04); border-color: rgba(34,197,94,0.2); }
+.tc-panel-card.fail { background: rgba(239,68,68,0.04); border-color: rgba(239,68,68,0.2); }
+.tc-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  background: #1c1c1f;
+}
+.tc-panel-card.pass .tc-panel-header { background: rgba(34,197,94,0.06); }
+.tc-panel-card.fail .tc-panel-header { background: rgba(239,68,68,0.06); }
+.tc-panel-path { font-size: 10px; color: #a1a1aa; font-family: monospace; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-panel-status { font-size: 10px; color: #52525b; font-family: monospace; flex-shrink: 0; }
+.tc-panel-result { font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.tc-panel-result.pass { color: #22c55e; }
+.tc-panel-result.fail { color: #ef4444; }
+.tc-panel-block {
+  padding: 4px 8px;
+  font-size: 10px;
+  font-family: monospace;
+  color: #71717a;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  border-top: 1px solid #27272a;
+  line-height: 1.5;
 }

@@ -7,9 +7,10 @@ use auth::AuthenticatedUser;
 use axum::{
     extract::State,
     http::StatusCode,
-    routing::{delete, get, post, put},
+    routing::{get, post},
     Json, Router,
 };
+use problems::ProblemSummary;
 use shared::{GradeResult, Submission};
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
@@ -45,8 +46,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/register", post(auth::register))
         .route("/login", post(auth::login))
         .route("/submit", post(submit))
-        .route("/db/:table", get(db_api::list_rows).post(db_api::insert_row))
-        .route("/db/:table/:id", put(db_api::update_row).delete(db_api::delete_row))
+        .route("/problems", get(list_problems))
+        .route("/db/:table", get(db_api::list_rows))
         .route("/health", get(|| async { "ok" }))
         .layer(cors)
         .with_state(state);
@@ -56,6 +57,15 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+async fn list_problems(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<ProblemSummary>>, (StatusCode, String)> {
+    let summaries = problems::list_all(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(summaries))
 }
 
 async fn submit(
