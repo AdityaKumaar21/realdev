@@ -1,9 +1,3 @@
-databases:
-  - name: api-trainer-db
-    plan: free
-    databaseName: api_trainer
-    user: api_trainer
-
 services:
   - type: web
     name: api-trainer-server
@@ -12,9 +6,7 @@ services:
     plan: free
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: api-trainer-db
-          property: connectionString
+        sync: false
     healthCheckPath: /health
 
   - type: web
