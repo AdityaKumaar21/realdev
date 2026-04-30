@@ -12,8 +12,6 @@ pub struct TestCase {
 }
 
 pub struct Problem {
-    pub id: String,
-    pub title: String,
     pub test_cases: Vec<TestCase>,
 }
 
@@ -43,7 +41,7 @@ pub struct ProblemSummary {
 }
 
 pub async fn load(id: &str, db: &sqlx::PgPool) -> Result<Problem> {
-    let row = sqlx::query("SELECT id, title FROM problems WHERE id = $1")
+    sqlx::query("SELECT 1 FROM problems WHERE id = $1")
         .bind(id)
         .fetch_optional(db)
         .await
@@ -71,11 +69,7 @@ pub async fn load(id: &str, db: &sqlx::PgPool) -> Result<Problem> {
         })
         .collect();
 
-    Ok(Problem {
-        id: row.get("id"),
-        title: row.get("title"),
-        test_cases,
-    })
+    Ok(Problem { test_cases })
 }
 
 pub async fn seed(problem_id: &str, db: &sqlx::PgPool) -> Result<()> {

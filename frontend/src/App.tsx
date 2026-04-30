@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import "./App.css";
 
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
 interface TestCaseResult {
   name: string;
   method: string;
@@ -55,7 +57,7 @@ function DbViewer({ table, token }: { table: string; token: string }) {
   async function fetchRows() {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3000/db/${table}`, {
+      const res = await fetch(`${API}/db/${table}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setRows(await res.json());
@@ -114,7 +116,7 @@ function AuthScreen({ onAuth }: { onAuth: (token: string, username: string) => v
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://localhost:3000/${tab}`, {
+      const res = await fetch(`${API}/${tab}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -196,7 +198,7 @@ function useProblemList(): { problems: Problem[]; loadError: string | null } {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("http://localhost:3000/problems")
+    fetch(`${API}/problems`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -253,7 +255,7 @@ function MainApp({ token, username, onLogout }: { token: string; username: strin
     setStatus("submitting");
     setError(null);
     try {
-      const res = await fetch("http://localhost:3000/submit", {
+      const res = await fetch(`${API}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ problem_id: problem.id, source_code: code }),
